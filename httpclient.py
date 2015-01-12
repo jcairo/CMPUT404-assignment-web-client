@@ -27,6 +27,7 @@ import urllib
 def help():
     print "httpclient.py [GET/POST] [URL]\n"
 
+# this is more like the response, not the request.
 class HTTPRequest(object):
     def __init__(self, code=200, body=""):
         self.code = code
@@ -37,15 +38,27 @@ class HTTPClient(object):
 
     def connect(self, host, port):
         # use sockets!
+        self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connection.connect((host, port))
         return None
 
+    # get response code
     def get_code(self, data):
         return None
 
+    # get response headers
     def get_headers(self,data):
         return None
-
+    
+    # get response body
     def get_body(self, data):
+        return None
+    
+    def build_request(self, url, method="GET"):
+        if method == "GET":
+            pass
+        else:
+            pass
         return None
 
     # read everything from the socket
@@ -61,8 +74,13 @@ class HTTPClient(object):
         return str(buffer)
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        # request = self.build_request(url)
+        # self.connect(host, port)
+        # self.connection.send(request, "GET")
+        # raw_response = self.recvall(self.connection)
+        # self.connection.close()
+        code = self.get_code(raw_response)
+        body = self.get_body(raw_response)
         return HTTPRequest(code, body)
 
     def POST(self, url, args=None):
