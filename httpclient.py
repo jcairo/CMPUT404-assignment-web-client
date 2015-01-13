@@ -23,11 +23,12 @@ import socket
 import re
 # you may use urllib to encode data appropriately
 import urllib
+import urlparse
 
 def help():
     print "httpclient.py [GET/POST] [URL]\n"
 
-# this is more like the response, not the request.
+# this is more the response obj
 class HTTPRequest(object):
     def __init__(self, code=200, body=""):
         self.code = code
@@ -47,25 +48,51 @@ class HTTPClient(object):
         return None
 
     # get response headers
-    def get_headers(self,data):
+    def get_headers(self, data):
         return None
     
     # get response body
     def get_body(self, data):
         return None
-    
-    def build_request(self, url, method="GET"):
+
+    def build_request(self, url, method="GET", args=None):
+        if method != 'GET' or method != 'POST':
+            # raise error
+            pass
+
+        url_components = urlparse.urlparse(url) 
+        path = url_components.path
+        if method == 'GET' and args is not None:
+            path += '?' + urllib.urlencode(args)
+        domain = url_components.netloc
+        headers = method + ' ' + path + '?' + ' ' + 'HTTP/1.1\r\n'    
+        headers += 'Host: ' + domain + '\r\n'
+        headers += 'Connection: ' + 'close\r\n'
         if method == "GET":
-            pass
-        else:
-            pass
-        return None
+            request = headers
+        elif method == "POST" and args is not None:
+            headers += 'Content-Type: ' + 'x-www-form-urlencoded\r\n'
+            body = urllib.urlencode(args)
+            headers += 'Content-Length: ' + str(len(byte(body)))
+            headers += '\r\n'
+            request = headers + body
+        return request
+    
+    def parse_host_and_port(self, url):
+        url_components = urlparse.urlparse(url)
+        try:
+            host, port = url_components.netloc.split(':')
+        except ValueError as e:
+            host = url_components.netloc
+            port = 80
+        return host, port
 
     # read everything from the socket
     def recvall(self, sock):
         buffer = bytearray()
         done = False
         while not done:
+            print (str(buffer))
             part = sock.recv(1024)
             if (part):
                 buffer.extend(part)
@@ -74,18 +101,25 @@ class HTTPClient(object):
         return str(buffer)
 
     def GET(self, url, args=None):
-        # request = self.build_request(url)
-        # self.connect(host, port)
-        # self.connection.send(request, "GET")
-        # raw_response = self.recvall(self.connection)
-        # self.connection.close()
+        host, port = self.parse_host_and_port(url)
+        request = self.build_request(url, "GET", args)
+        self.connect(host, port)
+        self.connection.sendall(request)
+        raw_response = self.recvall(self.connection)
+        self.connection.close()
         code = self.get_code(raw_response)
         body = self.get_body(raw_response)
         return HTTPRequest(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        host, port = self.parse_host_and_port(url)
+        request = self.build_request(url, "POST", args)
+        self.connect(host, port)
+        self.connection.send(request)
+        raw_response = self.recvall(self.connection)
+        self.connection.close()
+        code = self.get_code(raw_response)
+        body = self.get_body(raw_response)
         return HTTPRequest(code, body)
 
     def command(self, url, command="GET", args=None):
