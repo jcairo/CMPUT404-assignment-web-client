@@ -41,47 +41,79 @@ class HTTPClient(object):
         # use sockets!
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection.connect((host, port))
+        print ("Connected on to host %s, port %s" % (host, port))
         return None
 
     # get response code
     def get_code(self, data):
-        return None
+        try:
+            status_line = data.split('\r\n')[0]
+            code = status_line.split()[1]
+        except IndexError as e:
+            print ('Bad response status line. No code')
+            code = None
+        print ("Code: " + code)
+        return int(code)
 
     # get response headers
     def get_headers(self, data):
-        return None
+        try:
+            headers = data.split('\r\n', 1)[0]
+        except IndexError as e:
+            print ('No headers in response')
+            headers = None
+        print ("Headers: " + headers)
+        return headers
     
     # get response body
     def get_body(self, data):
-        return None
+        try:
+            body = data.split('\r\n\r\n', 1)[1]
+        except IndexError as e:
+            print ('No body found')
+            body = None
+        print ("Body:\r\n" + body)
+        return body
 
-    def build_request(self, url, method="GET", args=None):
+    def build_request(self, url, port, method="GET", args=None):
         if method != 'GET' or method != 'POST':
             # raise error
             pass
 
         url_components = urlparse.urlparse(url) 
         path = url_components.path
+        if not path:
+            path = '/'
         if method == 'GET' and args is not None:
-            path += '?' + urllib.urlencode(args)
+            path += ' ?' + urllib.urlencode(args)
         domain = url_components.netloc
-        headers = method + ' ' + path + '?' + ' ' + 'HTTP/1.1\r\n'    
-        headers += 'Host: ' + domain + '\r\n'
+        # headers = '{method} {path} HTTP/1.1\r\n'.format(method, path)
+        headers = method + ' ' + path + ' ' + 'HTTP/1.1\r\n'    
+        if port != 80:
+            port = ':' + str(port)
+        else:
+            port = ''
+        headers += 'Host: ' + domain + port + '\r\n'
         headers += 'Connection: ' + 'close\r\n'
         if method == "GET":
-            request = headers
-        elif method == "POST" and args is not None:
-            headers += 'Content-Type: ' + 'x-www-form-urlencoded\r\n'
-            body = urllib.urlencode(args)
-            headers += 'Content-Length: ' + str(len(byte(body)))
             headers += '\r\n'
-            request = headers + body
+            request = headers
+        elif method == "POST":
+            if args is not None:
+                headers += 'Content-Type: ' + 'x-www-form-urlencoded\r\n'
+                body = urllib.urlencode(args)
+                headers += 'Content-Length: ' + str(len(bytearray(body)))
+                headers += '\r\n\r\n'
+                request = headers + body
+            else:
+                request = headers + '\r\n'
         return request
     
     def parse_host_and_port(self, url):
         url_components = urlparse.urlparse(url)
         try:
             host, port = url_components.netloc.split(':')
+            port = int(port)
         except ValueError as e:
             host = url_components.netloc
             port = 80
@@ -92,8 +124,8 @@ class HTTPClient(object):
         buffer = bytearray()
         done = False
         while not done:
-            print (str(buffer))
             part = sock.recv(1024)
+            print ('Buffer: ' + buffer)
             if (part):
                 buffer.extend(part)
             else:
@@ -102,9 +134,10 @@ class HTTPClient(object):
 
     def GET(self, url, args=None):
         host, port = self.parse_host_and_port(url)
-        request = self.build_request(url, "GET", args)
+        request = self.build_request(url, port, "GET", args)
         self.connect(host, port)
-        self.connection.sendall(request)
+        print ('\n' + 'Request: ' + '\n' + request)
+        self.connection.send(request)
         raw_response = self.recvall(self.connection)
         self.connection.close()
         code = self.get_code(raw_response)
@@ -113,8 +146,9 @@ class HTTPClient(object):
 
     def POST(self, url, args=None):
         host, port = self.parse_host_and_port(url)
-        request = self.build_request(url, "POST", args)
+        request = self.build_request(url, port, "POST", args)
         self.connect(host, port)
+        print ('Post Request:\r\n' + request)
         self.connection.send(request)
         raw_response = self.recvall(self.connection)
         self.connection.close()
@@ -137,4 +171,4 @@ if __name__ == "__main__":
     elif (len(sys.argv) == 3):
         print client.command( sys.argv[1], sys.argv[2] )
     else:
-        print client.command( command, sys.argv[1] )    
+        print client.command( sys.argv[1], command )    
