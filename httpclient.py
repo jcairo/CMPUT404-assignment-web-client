@@ -76,34 +76,31 @@ class HTTPClient(object):
         return body
 
     def build_request(self, url, port, method="GET", args=None):
-        if method != 'GET' or method != 'POST':
-            # raise error
-            pass
-
+        if method not in {'GET', 'POST'}:
+            raise ValueError("Request method must be GET or POST")
         url_components = urlparse.urlparse(url) 
         path = url_components.path
         if not path:
             path = '/'
         if method == 'GET' and args is not None:
-            path += ' ?' + urllib.urlencode(args)
+            path += '?' + urllib.urlencode(args)
         domain = url_components.netloc
-        # headers = '{method} {path} HTTP/1.1\r\n'.format(method, path)
-        headers = method + ' ' + path + ' ' + 'HTTP/1.1\r\n'    
+        headers = '{0} {1} HTTP/1.1\r\n'.format(method, path)
         if port != 80:
-            port = ':' + str(port)
+            port = ':{0}'.format(str(port))
         else:
             port = ''
-        headers += 'Host: ' + domain + port + '\r\n'
-        headers += 'Connection: ' + 'close\r\n'
+        headers += 'Host: {0}{1}\r\n'.format(domain, port)
+        headers += 'Connection: close\r\n'
         if method == "GET":
             headers += '\r\n'
             request = headers
         elif method == "POST":
             if args is not None:
-                headers += 'Content-Type: ' + 'x-www-form-urlencoded\r\n'
+                headers += 'Content-Type: x-www-form-urlencoded\r\n'
                 body = urllib.urlencode(args)
-                headers += 'Content-Length: ' + str(len(bytearray(body)))
-                headers += '\r\n\r\n'
+                headers += 'Content-Length: ' + str(len(bytearray(body))) + '\r\n'
+                headers += '\r\n'
                 request = headers + body
             else:
                 request = headers + '\r\n'
@@ -133,20 +130,14 @@ class HTTPClient(object):
         return str(buffer)
 
     def GET(self, url, args=None):
-        host, port = self.parse_host_and_port(url)
-        request = self.build_request(url, port, "GET", args)
-        self.connect(host, port)
-        print ('\n' + 'Request: ' + '\n' + request)
-        self.connection.send(request)
-        raw_response = self.recvall(self.connection)
-        self.connection.close()
-        code = self.get_code(raw_response)
-        body = self.get_body(raw_response)
-        return HTTPRequest(code, body)
+        return self.generate_request(url, args, 'GET')
 
     def POST(self, url, args=None):
+        return self.generate_request(url, args, 'POST')
+            
+    def generate_request(self, url, args, method):
         host, port = self.parse_host_and_port(url)
-        request = self.build_request(url, port, "POST", args)
+        request = self.build_request(url, port, method, args)
         self.connect(host, port)
         print ('Post Request:\r\n' + request)
         self.connection.send(request)
@@ -161,7 +152,7 @@ class HTTPClient(object):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
-    
+
 if __name__ == "__main__":
     client = HTTPClient()
     command = "GET"
