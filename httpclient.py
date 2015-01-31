@@ -52,7 +52,7 @@ class HTTPClient(object):
         except IndexError as e:
             print ('Bad response status line. No code')
             code = None
-        print ("Code: " + code)
+        # print ("Code: " + code)
         return int(code)
 
     # get response headers
@@ -62,7 +62,7 @@ class HTTPClient(object):
         except IndexError as e:
             print ('No headers in response')
             headers = None
-        print ("Headers: " + headers)
+        # print ("Headers: " + headers)
         return headers
     
     # get response body
@@ -72,7 +72,7 @@ class HTTPClient(object):
         except IndexError as e:
             print ('No body found')
             body = None
-        print ("Body:\r\n" + body)
+        # print ("Body:\r\n" + body)
         return body
 
     def build_request(self, url, port, method="GET", args=None):
@@ -122,7 +122,7 @@ class HTTPClient(object):
         done = False
         while not done:
             part = sock.recv(1024)
-            print ('Buffer: ' + buffer)
+            # print ('Buffer: ' + buffer)
             if (part):
                 buffer.extend(part)
             else:
@@ -139,7 +139,7 @@ class HTTPClient(object):
         host, port = self.parse_host_and_port(url)
         request = self.build_request(url, port, method, args)
         self.connect(host, port)
-        print ('Post Request:\r\n' + request)
+        # print ('Post Request:\r\n' + request)
         self.connection.send(request)
         raw_response = self.recvall(self.connection)
         self.connection.close()
